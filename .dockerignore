@@ -1,9 +1,0 @@
-backend/venv
-frontend/node_modules
-frontend/build
-.git
-.env
-backend/.env
-__pycache__
-*.pyc
-.pytest_cache
