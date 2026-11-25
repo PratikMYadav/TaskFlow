@@ -37,18 +37,30 @@ class Settings(BaseSettings):
     def get_database_url(self) -> str:
         if self.ENV == "testing":
             return "sqlite:///:memory:"
-        if self.DATABASE_URL:
-            return self.DATABASE_URL
-        # URL-encode password in case it contains special characters (@, :, /, %, etc.)
-        encoded_password = quote_plus(self.MYSQL_PASSWORD)
+
+        # Check for direct database URL (Railway sets DATABASE_URL or MYSQL_URL automatically)
+        db_url = os.environ.get("DATABASE_URL") or os.environ.get("MYSQL_URL") or self.DATABASE_URL
+        if db_url:
+            if db_url.startswith("mysql://"):
+                db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
+            return db_url
+
+        # Check environment variables with or without underscores (Railway sets MYSQLHOST, MYSQLUSER, etc.)
+        host = os.environ.get("MYSQLHOST") or os.environ.get("MYSQL_HOST") or self.MYSQL_HOST
+        port = os.environ.get("MYSQLPORT") or os.environ.get("MYSQL_PORT") or self.MYSQL_PORT
+        user = os.environ.get("MYSQLUSER") or os.environ.get("MYSQL_USER") or self.MYSQL_USER
+        password = os.environ.get("MYSQLPASSWORD") or os.environ.get("MYSQL_PASSWORD") or self.MYSQL_PASSWORD
+        database = os.environ.get("MYSQLDATABASE") or os.environ.get("MYSQL_DATABASE") or self.MYSQL_DATABASE
+
+        encoded_password = quote_plus(str(password))
         return (
-            f"mysql+pymysql://{self.MYSQL_USER}:{encoded_password}"
-            f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}?charset=utf8mb4"
+            f"mysql+pymysql://{user}:{encoded_password}"
+            f"@{host}:{port}/{database}?charset=utf8mb4"
         )
 
     @property
     def cors_origins(self) -> List[str]:
-        origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+        origins = ["http://localhost:3000", "http://127.0.0.1:3000", "*"]
         if self.FRONTEND_URL and self.FRONTEND_URL not in origins:
             origins.append(self.FRONTEND_URL)
         return origins
